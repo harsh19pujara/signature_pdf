@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 class DrawSignature extends StatefulWidget {
@@ -8,7 +11,7 @@ class DrawSignature extends StatefulWidget {
 }
 
 Map<int, List<Offset>?> linesMap = {};
-Paint myPaint = Paint();
+Canvas mySketchCanvas = Canvas(PictureRecorder());
 
 
 class _DrawSignatureState extends State<DrawSignature> {
@@ -19,6 +22,8 @@ class _DrawSignatureState extends State<DrawSignature> {
 
   @override
   Widget build(BuildContext context) {
+    CustomPainter mySketchPainter = MyPainter(id: id, strokeColor: strokeColor, strokeWidth: strokeWidth, offsetList: line);
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -26,7 +31,7 @@ class _DrawSignatureState extends State<DrawSignature> {
         backgroundColor: Colors.transparent,
         actions: [
           ElevatedButton(onPressed: () {
-            Navigator.pop(context, myPaint);
+            Navigator.pop(context, mySketchPainter);
           }, child: const Text("Done")),
           const SizedBox(width: 15,)
         ],
@@ -43,13 +48,13 @@ class _DrawSignatureState extends State<DrawSignature> {
                 onPanStart: (details) {
                   debugPrint('START ####  Global Pos ${details.globalPosition} - Local Pos ${details.localPosition} - Timestamp ${details.sourceTimeStamp} - Kind ${details.kind}');
                   setState(() {
-                    line.add(details.globalPosition);
+                    line.add(details.localPosition);
                   });
                 },
                 onPanUpdate: (details) {
                   debugPrint('UPDATE ### Global Pos ${details.globalPosition} - Local Pos ${details.localPosition} - Timestamp ${details.sourceTimeStamp} - Delta ${details.delta} - Primary Delta ${details.primaryDelta}');
                   setState(() {
-                    line.add(details.globalPosition);
+                    line.add(details.localPosition);
                   });
                 },
                 onPanEnd: (details) {
@@ -58,7 +63,7 @@ class _DrawSignatureState extends State<DrawSignature> {
                   line = [];
                 },
                 child: CustomPaint(
-                  painter: MyPainter(id: id, strokeColor: strokeColor, strokeWidth: strokeWidth, offsetList: line),
+                  painter: mySketchPainter,
                 ),
               ),
             ),
@@ -91,7 +96,7 @@ class _DrawSignatureState extends State<DrawSignature> {
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          FloatingActionButton.small(backgroundColor: Colors.purple[100],onPressed: () {
+          FloatingActionButton.small(heroTag: 'Undo', backgroundColor: Colors.purple[100],onPressed: () {
             setState(() {
               if (id > 0) {
                 id--;
@@ -102,7 +107,7 @@ class _DrawSignatureState extends State<DrawSignature> {
               linesMap.removeWhere((key, value) => value == []);
             });
           },child: const Icon(Icons.undo_sharp, color: Colors.black54,)),
-          FloatingActionButton.small(backgroundColor: Colors.purple[100],onPressed: () {
+          FloatingActionButton.small(heroTag: 'Clear All', backgroundColor: Colors.purple[100],onPressed: () {
             setState(() {
               linesMap.clear();
               id = 0;
@@ -119,22 +124,21 @@ class MyPainter extends CustomPainter{
   Offset? start;
   Offset? end;
   List<Offset>? offsetList = [];
-  final int id;
+  int? id;
   double strokeWidth;
   Color strokeColor;
 
-  MyPainter({required this.id, this.offsetList, this.strokeWidth = 1, this.strokeColor = Colors.black});
+  MyPainter({this.id, this.offsetList, this.strokeWidth = 1, this.strokeColor = Colors.black});
 
   @override
   void paint(Canvas canvas, Size size) {
-    myPaint = Paint()..color = strokeColor..strokeWidth = strokeWidth;
-    // debugPrint("error3 $id $offsetList $linesMap");
+    Paint myPaint = Paint()..color = strokeColor..strokeWidth = strokeWidth;
+    canvas.scale(0.4, 0.2);
 
     if((!linesMap.keys.contains(id)) && offsetList?.length != 0){
       debugPrint("error $id $offsetList $linesMap");
-      linesMap[id] = offsetList ?? [];
+      linesMap[id!] = offsetList ?? [];
     }
-    // debugPrint("error2 $id $offsetList $linesMap");
 
     for (var v = 0; v < linesMap.length; v++) {
       if (linesMap[v] != []) {
