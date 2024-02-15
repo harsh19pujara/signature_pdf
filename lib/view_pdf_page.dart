@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:signature_pdf/draw_signature.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
@@ -14,10 +16,13 @@ class ViewPDFPage extends StatefulWidget {
 class _ViewPDFPageState extends State<ViewPDFPage> {
   Canvas? mySignature;
   CustomPainter? mySignaturePainter;
+  Offset signaturePos = const Offset(0, 0);
+  File? signatureImg;
 
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       body: SafeArea(
         child: Stack(
@@ -32,21 +37,29 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
             ),
 
             ///Signature
-            mySignaturePainter != null
-                ? Container(
-                  height: 100,
-                  width: 100,
-                  decoration: BoxDecoration(color: Colors.red[400]),
-                  child: LayoutBuilder(builder: (context, constraints) {
-                    constraints.constrainDimensions(200, 300);
-                    return CustomPaint(
-                      size: Size(20, 20),
-                      willChange: true,
-                      foregroundPainter: mySignaturePainter,
-                    );
-                  },),
-                )
-                : Container(height: 40, width: 40, color: Colors.green,)
+            // mySignaturePainter != null ?
+            Positioned(
+             left: signaturePos.dx,
+              top: signaturePos.dy,
+              child: Draggable(
+                feedback: Container(),
+                onDragUpdate: (details) => setState(() => signaturePos = details.globalPosition),
+                child: InteractiveViewer(
+                  clipBehavior: Clip.none,
+
+                  onInteractionUpdate: (details) {
+                    debugPrint("interaction ${details.localFocalPoint}");
+                  },
+                  child: signatureImg != null ?Container(child: Image.file(signatureImg!)) : Container()
+                  // child: CustomPaint(
+                  //   willChange: true,
+                  //   size: Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
+                  //   painter: mySignaturePainter,
+                  // ),
+                ),
+              ),
+            )
+                // : Container(height: 40, width: 40, color: Colors.green,)
           ],
         ),
       ),
@@ -56,8 +69,8 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
               debugPrint("object $myCanvas");
               if (myCanvas != null) {
                 setState(() {
-                  mySignaturePainter = myCanvas;
-                  // mySignaturePainter!.shouldRepaint(oldDelegate)
+                  mySignaturePainter = myCanvas[0];
+                  signatureImg = myCanvas[1];
                 });
               }
             });
@@ -67,17 +80,3 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
   }
 }
 
-class MySignaturePainter extends CustomPainter{
-  CustomPainter? painter;
-
-  MySignaturePainter({super.repaint, this.painter});
-  @override
-  void paint(Canvas canvas, Size size) {
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    // TODO: implement shouldRepaint
-    throw UnimplementedError();
-  }
-}
