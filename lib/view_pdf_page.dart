@@ -37,40 +37,34 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
             ),
 
             ///Signature
-            // mySignaturePainter != null ?
             Positioned(
              left: signaturePos.dx,
               top: signaturePos.dy,
               child: Draggable(
                 feedback: Container(),
-                onDragUpdate: (details) => setState(() => signaturePos = details.globalPosition),
+                onDragUpdate: (details) {
+                  setState(() {
+                    signaturePos = signaturePos + details.delta;
+                  });
+                },
                 child: InteractiveViewer(
-                  clipBehavior: Clip.none,
-
                   onInteractionUpdate: (details) {
                     debugPrint("interaction ${details.localFocalPoint}");
                   },
-                  child: signatureImg != null ?Container(child: Image.file(signatureImg!)) : Container()
-                  // child: CustomPaint(
-                  //   willChange: true,
-                  //   size: Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
-                  //   painter: mySignaturePainter,
-                  // ),
+                  child: signatureImg != null ?Container(decoration: BoxDecoration(border: Border.all(color: Colors.red[400]!,)),child: Image.file(signatureImg!)) : Container()
                 ),
               ),
             )
-                // : Container(height: 40, width: 40, color: Colors.green,)
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton.small(
           onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const DrawSignature(),)).then((myCanvas) {
-              debugPrint("object $myCanvas");
-              if (myCanvas != null) {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const DrawSignature(),)).then((image) {
+              debugPrint("object $image");
+              if (image != null) {
                 setState(() {
-                  mySignaturePainter = myCanvas[0];
-                  signatureImg = myCanvas[1];
+                  signatureImg = image;
                 });
               }
             });

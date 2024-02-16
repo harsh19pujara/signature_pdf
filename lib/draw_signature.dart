@@ -11,9 +11,7 @@ class DrawSignature extends StatefulWidget {
 }
 
 Map<int, List<Offset>?> linesMap = {};
-ui.Image? sketchImage;
 CustomPainter? myOldDelegate;
-Size canvasSize = const Size(10, 10);
 int id = 0;
 
 //Bound
@@ -25,25 +23,10 @@ Offset bottomBound = Offset.zero;
 class _DrawSignatureState extends State<DrawSignature> {
   ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
   late Canvas myCanvas;
+  ui.Image? sketchImage;
   List<Offset> line = [];
   double strokeWidth = 1;
   Color strokeColor = Colors.black;
-
-  Future<File> convertImageToFile(ui.Image image) async {
-    var pngBytes = await image.toByteData(format: ui.ImageByteFormat.png);
-
-    Directory saveDir = await getApplicationDocumentsDirectory();
-    String path = '${saveDir.path}/signature_image.jpg';
-    File saveFile = File(path);
-
-    if (!saveFile.existsSync()) {
-      saveFile.createSync(recursive: true);
-    }
-    if (pngBytes != null) {
-      saveFile.writeAsBytesSync(pngBytes.buffer.asUint8List(), flush: true);
-    }
-    return saveFile;
-  }
 
   @override
   void initState() {
@@ -63,7 +46,7 @@ class _DrawSignatureState extends State<DrawSignature> {
         actions: [
           ElevatedButton(onPressed: () async{
             await getImage().then((value) async{
-              Navigator.pop(context, [mySketchPainter, sketchImage != null ? await convertImageToFile(sketchImage!) : null]);
+              Navigator.pop(context, sketchImage != null ? await convertImageToFile(sketchImage!) : null);
             });
           }, child: const Text("Done")),
           const SizedBox(width: 15,)
@@ -76,27 +59,25 @@ class _DrawSignatureState extends State<DrawSignature> {
           SizedBox(
             height: MediaQuery.of(context).size.height,
             width: MediaQuery.of(context).size.width,
-            child: InteractiveViewer(
-              child: GestureDetector(
-                onPanStart: (details) {
-                  debugPrint('START #### Local Pos ${details.localPosition}, l $leftBound, r $rightBound, t $topBound, b $bottomBound');
-                  setState(() {
-                    line.add(details.localPosition);
-                  });
-                },
-                onPanUpdate: (details) {
-                  debugPrint('UPDATE ### Local Pos ${details.localPosition}, l $leftBound, r $rightBound, t $topBound, b $bottomBound');
-                  setState(() {
-                    line.add(details.localPosition);
-                  });
-                },
-                onPanEnd: (details) {
-                  id++;
-                  line = [];
-                },
-                child: CustomPaint(
-                  painter: mySketchPainter,
-                ),
+            child: GestureDetector(
+              onPanStart: (details) {
+                debugPrint('START #### Local Pos ${details.localPosition}, l $leftBound, r $rightBound, t $topBound, b $bottomBound');
+                setState(() {
+                  line.add(details.localPosition);
+                });
+              },
+              onPanUpdate: (details) {
+                debugPrint('UPDATE ### Local Pos ${details.localPosition}, l $leftBound, r $rightBound, t $topBound, b $bottomBound');
+                setState(() {
+                  line.add(details.localPosition);
+                });
+              },
+              onPanEnd: (details) {
+                id++;
+                line = [];
+              },
+              child: CustomPaint(
+                painter: mySketchPainter,
               ),
             ),
           ),
@@ -161,28 +142,28 @@ class _DrawSignatureState extends State<DrawSignature> {
         Offset(rightBound.dx + 4, 0),
       ], true);
 
-      // path.addPolygon([
-      //   Offset(leftBound.dx, topBound.dy),
-      //   Offset(leftBound.dx, bottomBound.dy),
-      //   Offset(rightBound.dx, bottomBound.dy),
-      //   Offset(rightBound.dx, topBound.dy),
-      // ], true);
-
-      // path.addPolygon([
-      //   Offset(leftBound.dx-2, topBound.dy-2),
-      //   Offset(leftBound.dx-2, bottomBound.dy+2),
-      //   Offset(rightBound.dx+2, bottomBound.dy+2),
-      //   Offset(rightBound.dx+2, topBound.dy-2),
-      // ], true);
-
-
       myCanvas.clipPath(path, doAntiAlias: true);
       myCanvas.translate(-leftBound.dx + 2, -topBound.dy + 2);
-      // Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height);
       myOldDelegate!.paint(myCanvas, Size(rightBound.dx - leftBound.dx + 4, bottomBound.dy - topBound.dy + 4));
       final ui.Picture picture = pictureRecorder.endRecording();
       sketchImage = await picture.toImage((rightBound.dx - leftBound.dx).toInt() + 4, (bottomBound.dy - topBound.dy).toInt() + 4);
     }
+  }
+
+  Future<File> convertImageToFile(ui.Image image) async {
+    var pngBytes = await image.toByteData(format: ui.ImageByteFormat.png);
+
+    Directory saveDir = await getApplicationDocumentsDirectory();
+    String path = '${saveDir.path}/signature_image.jpg';
+    File saveFile = File(path);
+
+    if (!saveFile.existsSync()) {
+      saveFile.createSync(recursive: true);
+    }
+    if (pngBytes != null) {
+      saveFile.writeAsBytesSync(pngBytes.buffer.asUint8List(), flush: true);
+    }
+    return saveFile;
   }
 }
 
@@ -214,7 +195,6 @@ class MyPainter extends CustomPainter{
               end = linesMap[v]![i+1];
               getBoundOfSketch(start);
               canvas.drawLine(start!, end!, myPaint);
-              canvasSize = size;
             }
           }
         }
