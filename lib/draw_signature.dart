@@ -25,7 +25,7 @@ class _DrawSignatureState extends State<DrawSignature> {
   late Canvas myCanvas;
   ui.Image? sketchImage;
   List<Offset> line = [];
-  double strokeWidth = 1;
+  double strokeWidth = 2;
   Color strokeColor = Colors.black;
 
   @override
