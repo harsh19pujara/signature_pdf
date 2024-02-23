@@ -67,7 +67,7 @@ class _DrawSignatureState extends State<DrawSignature> {
                 });
               },
               onPanUpdate: (details) {
-                debugPrint('UPDATE ### Local Pos ${details.localPosition}, l $leftBound, r $rightBound, t $topBound, b $bottomBound');
+                // debugPrint('UPDATE ### Local Pos ${details.localPosition}, l $leftBound, r $rightBound, t $topBound, b $bottomBound');
                 setState(() {
                   line.add(details.localPosition);
                 });
@@ -125,6 +125,10 @@ class _DrawSignatureState extends State<DrawSignature> {
               linesMap.clear();
               id = 0;
               line = [];
+              leftBound = Offset.zero;
+              rightBound = Offset.zero;
+              topBound = Offset.zero;
+              bottomBound = Offset.zero;
             });
           },child: const Icon(Icons.file_open_outlined, color: Colors.black54,)),
         ],
