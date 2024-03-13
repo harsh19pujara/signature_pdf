@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:signature_pdf/view_pdf_page.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  unawaited(MobileAds.instance.initialize());
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
     home: Home(),

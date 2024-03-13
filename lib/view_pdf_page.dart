@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:signature_pdf/draw_signature.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
@@ -32,6 +33,66 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
   bool ignoring = false;
   int pageNumber = 1;
   File? updatedPDF;
+  late InterstitialAd interstitialAd;
+  late RewardedAd rewardedAd;
+  bool interstitialAdLoaded = false;
+  bool rewardedAdLoaded = false;
+  String adUnitId = 'ca-app-pub-7342648461123301/4299974481';
+
+  Future<void> initAd() async {
+    await RewardedAd.load(
+        adUnitId: adUnitId,
+        request: AdRequest(),
+        rewardedAdLoadCallback: RewardedAdLoadCallback(
+            onAdLoaded: (ad) {
+              rewardedAd = ad;
+              rewardedAdLoaded = true;
+
+              rewardedAd.fullScreenContentCallback = FullScreenContentCallback(
+                onAdDismissedFullScreenContent: (ad) {
+
+                },
+                onAdClicked: (ad) {
+
+                },
+                onAdFailedToShowFullScreenContent: (ad, error) {
+
+                },
+              );
+            },
+            onAdFailedToLoad: (error) {
+
+            },
+        )
+    );
+
+
+    await InterstitialAd.load(
+        adUnitId: adUnitId,
+        request: AdRequest(),
+        adLoadCallback: InterstitialAdLoadCallback(
+            onAdLoaded: (ad) {
+              interstitialAd = ad;
+              interstitialAdLoaded = true;
+
+              interstitialAd.fullScreenContentCallback = FullScreenContentCallback(
+                onAdDismissedFullScreenContent: (ad) {
+
+                },
+                onAdClicked: (ad) {
+
+                },
+                onAdFailedToShowFullScreenContent: (ad, error) {
+
+                },
+              );
+            },
+            onAdFailedToLoad: (error) {
+
+            },
+        )
+    );
+  }
 
   @override
   void initState() {
@@ -41,7 +102,6 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       body: SafeArea(
         child: Stack(
@@ -53,6 +113,9 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
             ///PDF
             SfPdfViewer.file(
               updatedPDF ?? widget.pdf,
+              onDocumentLoaded: (details) {
+                controller.jumpToPage(pageNumber);
+              },
               canShowPasswordDialog: true,
               pageLayoutMode: PdfPageLayoutMode.single,
               controller: controller,
@@ -66,6 +129,9 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
                     signaturePDFPos = details.pagePosition;
                     ignoring = false;
                   });
+                  if (!signatureSelected) {
+                    downloadPDF();
+                  }
                 }
               },
               onPageChanged: (details) {
@@ -208,6 +274,8 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
                /// Download PDF
                 if (!signatureSelected) {
                   downloadPDF();
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Make changes to PDF")));
                 }
               },
               child: const Icon(Icons.download_sharp)),
@@ -240,12 +308,13 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
     // Add image
     document.pages[pageNumber - 1].graphics.drawImage(
         PdfBitmap(await signatureImg!.readAsBytes()),
-        Rect.fromLTWH((signaturePDFPos - signatureImageLocalPos).dx, (signaturePDFPos - signatureImageLocalPos).dy, imageWidth * scale * 1.5, imageHeight * scale * 1.5)
+        Rect.fromLTWH((signaturePDFPos - signatureImageLocalPos).dx - 40, (signaturePDFPos - signatureImageLocalPos).dy - 35, imageWidth * scale * 1.5, imageHeight * scale * 1.5)
     );
 
     //Saves the document
-    // Directory saveDir = await getApplicationDocumentsDirectory();
-    Directory saveDir = Directory('/storage/emulated/0/Download');
+    // Directory saveDir = Directory('/storage/emulated/0/Download'); /
+    //  download directory
+    Directory saveDir = await getTemporaryDirectory();
     if(await saveDir.exists()){
 
     } else {
@@ -254,11 +323,12 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
     debugPrint("path $saveDir");
     String path = '${saveDir.path}/Output_${DateTime.now().millisecondsSinceEpoch}.pdf';
     await File(path).writeAsBytes(await document.save()).then((saveFile) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Downloaded, Check Download Folder in File Manager")));
+      // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Downloaded, Check Download Folder in File Manager")));
       updatedPDF = saveFile;
       signatureImg = null;
       signatureSelected = true;
       scale = 1;
+      rotation = 0.0;
       setState(() {});
 
       //Disposes the document
