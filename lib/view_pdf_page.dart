@@ -42,9 +42,10 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
   Future<void> initAd() async {
     await RewardedAd.load(
         adUnitId: adUnitId,
-        request: AdRequest(),
+        request: const AdRequest(),
         rewardedAdLoadCallback: RewardedAdLoadCallback(
             onAdLoaded: (ad) {
+              debugPrint("ad loaded");
               rewardedAd = ad;
               rewardedAdLoaded = true;
 
@@ -67,36 +68,37 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
     );
 
 
-    await InterstitialAd.load(
-        adUnitId: adUnitId,
-        request: AdRequest(),
-        adLoadCallback: InterstitialAdLoadCallback(
-            onAdLoaded: (ad) {
-              interstitialAd = ad;
-              interstitialAdLoaded = true;
-
-              interstitialAd.fullScreenContentCallback = FullScreenContentCallback(
-                onAdDismissedFullScreenContent: (ad) {
-
-                },
-                onAdClicked: (ad) {
-
-                },
-                onAdFailedToShowFullScreenContent: (ad, error) {
-
-                },
-              );
-            },
-            onAdFailedToLoad: (error) {
-
-            },
-        )
-    );
+    // await InterstitialAd.load(
+    //     adUnitId: adUnitId,
+    //     request: AdRequest(),
+    //     adLoadCallback: InterstitialAdLoadCallback(
+    //         onAdLoaded: (ad) {
+    //           interstitialAd = ad;
+    //           interstitialAdLoaded = true;
+    //
+    //           interstitialAd.fullScreenContentCallback = FullScreenContentCallback(
+    //             onAdDismissedFullScreenContent: (ad) {
+    //
+    //             },
+    //             onAdClicked: (ad) {
+    //
+    //             },
+    //             onAdFailedToShowFullScreenContent: (ad, error) {
+    //
+    //             },
+    //           );
+    //         },
+    //         onAdFailedToLoad: (error) {
+    //
+    //         },
+    //     )
+    // );
   }
 
   @override
   void initState() {
     super.initState();
+    initAd();
   }
 
 
@@ -108,7 +110,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
           children: <Widget>[
             GestureDetector(onTap: (){
               debugPrint("yoo");
-            },child: Container(height: MediaQuery.of(context).size.height, width: MediaQuery.of(context).size.width, color: Colors.grey[200]!.withOpacity(0.2))),
+            },child: Container(height: MediaQuery.of(context).size.height, width: MediaQuery.of(context).size.width, color: Colors.red[200]!.withOpacity(0.2))),
 
             ///PDF
             SfPdfViewer.file(
@@ -130,7 +132,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
                     ignoring = false;
                   });
                   if (!signatureSelected) {
-                    downloadPDF();
+                    downloadPDF(download: false);
                   }
                 }
               },
@@ -270,13 +272,15 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
         children: [
           FloatingActionButton.small(
               heroTag: 'Download', backgroundColor: Colors.purple[100],
-              onPressed: () {
+              onPressed: () async {
                /// Download PDF
-                if (!signatureSelected) {
-                  downloadPDF();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Make changes to PDF")));
-                }
+               //  if (!signatureSelected) {
+                 await rewardedAd.show(onUserEarnedReward: (ad, reward) {
+                   downloadPDF(download: true);
+                 },);
+                // } else {
+                //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Make changes to PDF")));
+                // }
               },
               child: const Icon(Icons.download_sharp)),
           FloatingActionButton.small(
@@ -298,7 +302,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
     );
   }
 
-  downloadPDF() async {
+  downloadPDF({required bool download}) async {
     Uint8List pdfList =  updatedPDF != null ? await updatedPDF!.readAsBytes() : await widget.pdf.absolute.readAsBytes();
 
     //Create a new PDF document
@@ -311,10 +315,11 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
         Rect.fromLTWH((signaturePDFPos - signatureImageLocalPos).dx - 40, (signaturePDFPos - signatureImageLocalPos).dy - 35, imageWidth * scale * 1.5, imageHeight * scale * 1.5)
     );
 
-    //Saves the document
-    // Directory saveDir = Directory('/storage/emulated/0/Download'); /
-    //  download directory
     Directory saveDir = await getTemporaryDirectory();
+    if(download == true) {
+      saveDir = Directory('/storage/emulated/0/Download');
+    }
+
     if(await saveDir.exists()){
 
     } else {
@@ -324,15 +329,16 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
     String path = '${saveDir.path}/Output_${DateTime.now().millisecondsSinceEpoch}.pdf';
     await File(path).writeAsBytes(await document.save()).then((saveFile) {
       // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Downloaded, Check Download Folder in File Manager")));
+      debugPrint("fileWritten");
       updatedPDF = saveFile;
       signatureImg = null;
       signatureSelected = true;
       scale = 1;
       rotation = 0.0;
-      setState(() {});
-
       //Disposes the document
       document.dispose();
+
+      setState(() {});
     });
   }
 }
