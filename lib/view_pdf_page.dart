@@ -65,6 +65,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
               },
               canShowPasswordDialog: true,
               pageLayoutMode: PdfPageLayoutMode.single,
+
               controller: controller,
               canShowScrollHead: false,
               enableDoubleTapZooming: false,
@@ -282,42 +283,97 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
   }
 
   downloadPDF({required bool download}) async {
-    Uint8List pdfList = updatedPDF != null ? await updatedPDF!.readAsBytes() : await widget.pdf.absolute.readAsBytes();
+    Uint8List pdfList = updatedPDF != null
+        ? await updatedPDF!.readAsBytes()
+        : await widget.pdf.absolute.readAsBytes();
 
-    //Create a new PDF document
+    // Create a new PDF document
     PdfDocument document = PdfDocument(inputBytes: pdfList);
-    debugPrint(
-        "pages list ${document.pages.count} , ${(rotation == 0 ? 1 : rotation) * (180 / math.pi)}, ${signatureScreenPos.dx}, ${signatureScreenPos.dy}, ${imageWidth * scale}, ${imageHeight * scale}");
 
-    // Add image
-    document.pages[pageNumber - 1].graphics.drawImage(
+    // Only add the signature if it exists
+    if (signatureImg != null) {
+      debugPrint(
+          "pages list ${document.pages.count}, ${(rotation == 0 ? 1 : rotation) * (180 / math.pi)}, ${signatureScreenPos.dx}, ${signatureScreenPos.dy}, ${imageWidth * scale}, ${imageHeight * scale}");
+
+      document.pages[pageNumber - 1].graphics.drawImage(
         PdfBitmap(await signatureImg!.readAsBytes()),
-        Rect.fromLTWH((signaturePDFPos - signatureImageLocalPos).dx - 40, (signaturePDFPos - signatureImageLocalPos).dy - 35,
-            imageWidth * scale * 1.5, imageHeight * scale * 1.5));
+        Rect.fromLTWH(
+          (signaturePDFPos - signatureImageLocalPos).dx - 40,
+          (signaturePDFPos - signatureImageLocalPos).dy - 35,
+          imageWidth * scale * 1.5,
+          imageHeight * scale * 1.5,
+        ),
+      );
+    }
 
+    // Save to path
     Directory saveDir = await getTemporaryDirectory();
-    if (download == true) {
+    if (download) {
       saveDir = Directory('/storage/emulated/0/Download');
     }
 
-    if (await saveDir.exists()) {
-    } else {
+    if (!await saveDir.exists()) {
       await saveDir.create(recursive: true);
     }
-    debugPrint("path $saveDir");
+
     String path = '${saveDir.path}/Output_${DateTime.now().millisecondsSinceEpoch}.pdf';
     await File(path).writeAsBytes(await document.save()).then((saveFile) {
-      // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Downloaded, Check Download Folder in File Manager")));
-      debugPrint("fileWritten");
+      debugPrint("fileWritten at $path");
       updatedPDF = saveFile;
+
+      // Reset signature state if it was used
       signatureImg = null;
       signatureSelected = true;
       scale = 1;
       rotation = 0.0;
-      //Disposes the document
+
       document.dispose();
 
       setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("PDF downloaded successfully to $path")),
+      );
     });
   }
+
+
+// downloadPDF({required bool download}) async {
+  //   Uint8List pdfList = updatedPDF != null ? await updatedPDF!.readAsBytes() : await widget.pdf.absolute.readAsBytes();
+  //
+  //   //Create a new PDF document
+  //   PdfDocument document = PdfDocument(inputBytes: pdfList);
+  //   debugPrint(
+  //       "pages list ${document.pages.count} , ${(rotation == 0 ? 1 : rotation) * (180 / math.pi)}, ${signatureScreenPos.dx}, ${signatureScreenPos.dy}, ${imageWidth * scale}, ${imageHeight * scale}");
+  //
+  //   // Add image
+  //   document.pages[pageNumber - 1].graphics.drawImage(
+  //       PdfBitmap(await signatureImg!.readAsBytes()),
+  //       Rect.fromLTWH((signaturePDFPos - signatureImageLocalPos).dx - 40, (signaturePDFPos - signatureImageLocalPos).dy - 35,
+  //           imageWidth * scale * 1.5, imageHeight * scale * 1.5));
+  //
+  //   Directory saveDir = await getTemporaryDirectory();
+  //   if (download == true) {
+  //     saveDir = Directory('/storage/emulated/0/Download');
+  //   }
+  //
+  //   if (await saveDir.exists()) {
+  //   } else {
+  //     await saveDir.create(recursive: true);
+  //   }
+  //   debugPrint("path $saveDir");
+  //   String path = '${saveDir.path}/Output_${DateTime.now().millisecondsSinceEpoch}.pdf';
+  //   await File(path).writeAsBytes(await document.save()).then((saveFile) {
+  //     // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Downloaded, Check Download Folder in File Manager")));
+  //     debugPrint("fileWritten");
+  //     updatedPDF = saveFile;
+  //     signatureImg = null;
+  //     signatureSelected = true;
+  //     scale = 1;
+  //     rotation = 0.0;
+  //     //Disposes the document
+  //     document.dispose();
+  //
+  //     setState(() {});
+  //   });
+  // }
 }
