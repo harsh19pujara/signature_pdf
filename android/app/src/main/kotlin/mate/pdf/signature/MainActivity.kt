@@ -1,4 +1,4 @@
-package com.example.signature_pdf
+package mate.pdf.signature
 
 import io.flutter.embedding.android.FlutterActivity
 

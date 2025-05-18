@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:signature_pdf/home.dart';
-
-Color primaryColor = const Color(0xFF147fda);
-Color secondaryColor = Colors.grey[200]!;
+import 'package:get/get.dart';
+import 'package:signature_pdf/screens/home/home.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MaterialApp(
+  runApp(GetMaterialApp(
     debugShowCheckedModeBanner: false,
     home: Home(),
   ));

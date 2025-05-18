@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:signature_pdf/main.dart';
+import 'package:signature_pdf/utils/theme_const.dart';
 
 class DrawSignature extends StatefulWidget {
   const DrawSignature({Key? key}) : super(key: key);

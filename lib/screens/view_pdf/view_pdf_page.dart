@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:signature_pdf/draw_signature.dart';
-import 'package:signature_pdf/main.dart';
+import 'package:signature_pdf/screens/add_signature/draw_signature.dart';
+import 'package:signature_pdf/utils/theme_const.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'dart:math' as math;
@@ -78,9 +78,9 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
                     signaturePDFPos = details.pagePosition;
                     ignoring = false;
                   });
-                  if (!signatureSelected) {
-                    downloadPDF(download: false);
-                  }
+                  // if (!signatureSelected) {
+                  //   downloadPDF(download: false);
+                  // }
                 }
               },
               onPageChanged: (details) {
@@ -104,7 +104,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
                             debugPrint("tapped00 ${tapDetails.localPosition}");
                             signatureImageLocalPos = tapDetails.localPosition;
                             ignoring = true;
-                            // signatureSelected = !signatureSelected;
+                            signatureSelected = !signatureSelected;
                           });
                         } else {
                           setState(() {
@@ -294,8 +294,8 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
     if (signatureImg != null) {
       debugPrint(
           "pages list ${document.pages.count}, ${(rotation == 0 ? 1 : rotation) * (180 / math.pi)}, ${signatureScreenPos.dx}, ${signatureScreenPos.dy}, ${imageWidth * scale}, ${imageHeight * scale}");
-
-      document.pages[pageNumber - 1].graphics.drawImage(
+      int number = pageNumber > 0 ? pageNumber - 1 : 0;
+      document.pages[number].graphics.drawImage(
         PdfBitmap(await signatureImg!.readAsBytes()),
         Rect.fromLTWH(
           (signaturePDFPos - signatureImageLocalPos).dx - 40,
@@ -316,7 +316,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
       await saveDir.create(recursive: true);
     }
 
-    String path = '${saveDir.path}/Output_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    String path = '${saveDir.path}/${widget.pdf.path.split("/").last.split(".").first}_${DateTime.now().millisecondsSinceEpoch}.pdf';
     await File(path).writeAsBytes(await document.save()).then((saveFile) {
       debugPrint("fileWritten at $path");
       updatedPDF = saveFile;
