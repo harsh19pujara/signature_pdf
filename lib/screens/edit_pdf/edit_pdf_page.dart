@@ -2,45 +2,18 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:signature_pdf/screens/add_signature/draw_signature.dart';
+import 'package:signature_pdf/screens/edit_pdf/edit_pdf_controller.dart';
 import 'package:signature_pdf/utils/theme_const.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'dart:math' as math;
 
-class ViewPDFPage extends StatefulWidget {
-  const ViewPDFPage({Key? key, required this.pdf}) : super(key: key);
-  final File pdf;
-
-  @override
-  State<ViewPDFPage> createState() => _ViewPDFPageState();
-}
-
-class _ViewPDFPageState extends State<ViewPDFPage> {
-  PdfViewerController controller = PdfViewerController();
-  Offset signatureScreenPos = const Offset(0, 0);
-  Offset signaturePDFPlacingPos = const Offset(0, 0);
-  Offset signaturePDFPos = const Offset(0, 0);
-  Offset signatureImageLocalPos = const Offset(0, 0);
-  File? signatureImg;
-  int imageHeight = 0;
-  int imageWidth = 0;
-  double oldRotation = 0.0;
-  double rotation = 0.0;
-  double scale = 1.0;
-  bool signatureSelected = true;
-  bool ignoring = false;
-  int pageNumber = 1;
-  File? updatedPDF;
-  bool interstitialAdLoaded = false;
-  bool rewardedAdLoaded = false;
-  String adUnitId = 'ca-app-pub-7342648461123301/4299974481';
-
-  @override
-  void initState() {
-    super.initState();
-  }
+class EditPDFPage extends StatelessWidget {
+  EditPDFPage({super.key});
+  final EditPDFController controller = Get.put(EditPDFController());
 
   @override
   Widget build(BuildContext context) {
@@ -59,94 +32,96 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
 
             ///PDF
             SfPdfViewer.file(
-              updatedPDF ?? widget.pdf,
+              controller.updatedFile ?? controller.pickedFile,
               onDocumentLoaded: (details) {
-                controller.jumpToPage(pageNumber);
+                controller.pdfController.jumpToPage(controller.pageNumber);
               },
               canShowPasswordDialog: true,
               pageLayoutMode: PdfPageLayoutMode.single,
 
-              controller: controller,
+              controller: controller.pdfController,
               canShowScrollHead: false,
               enableDoubleTapZooming: false,
               onTap: (details) {
-                if (ignoring == true) {
+                if (controller.ignoring == true) {
                   debugPrint(
-                      "pdf position: ${details.position}, pageNo: ${details.pageNumber}, pagePos : ${details.pagePosition},  sign $signatureScreenPos");
-                  setState(() {
-                    signatureSelected = !signatureSelected;
-                    signaturePDFPos = details.pagePosition;
-                    ignoring = false;
-                  });
+                      "pdf position: ${details.position}, pageNo: ${details.pageNumber}, pagePos : ${details.pagePosition},  sign ${controller.signatureScreenPos}");
+
+                    controller.signatureSelected = !controller.signatureSelected;
+                    controller.signaturePDFPos = details.pagePosition;
+                    controller.ignoring = false;
+
+                  controller.update();
                   // if (!signatureSelected) {
                   //   downloadPDF(download: false);
                   // }
                 }
               },
               onPageChanged: (details) {
-                pageNumber = details.newPageNumber;
+                controller.pageNumber = details.newPageNumber;
               },
             ),
 
             ///Signature Image
             Positioned(
-              left: signatureScreenPos.dx,
-              top: signatureScreenPos.dy,
+              left: controller.signatureScreenPos.dx,
+              top: controller.signatureScreenPos.dy,
               child: IgnorePointer(
-                ignoring: ignoring,
+                ignoring: controller.ignoring,
                 child: Transform.rotate(
-                  angle: rotation,
+                  angle: controller.rotation,
                   filterQuality: FilterQuality.high,
                   child: GestureDetector(
                       onTapUp: (tapDetails) {
-                        if (signatureSelected == true) {
-                          setState(() {
+                        if (controller.signatureSelected == true) {
+
                             debugPrint("tapped00 ${tapDetails.localPosition}");
-                            signatureImageLocalPos = tapDetails.localPosition;
-                            ignoring = true;
-                            signatureSelected = !signatureSelected;
-                          });
+                            controller.signatureImageLocalPos = tapDetails.localPosition;
+                            controller.ignoring = true;
+                            controller.signatureSelected = !controller.signatureSelected;
+
                         } else {
-                          setState(() {
-                            signatureSelected = true;
-                          });
+
+                            controller.signatureSelected = true;
+
                         }
+                        controller.update();
                         Future.delayed(
                           const Duration(
                             milliseconds: 500,
                           ),
                           () {
-                            setState(() {
-                              ignoring = false;
-                            });
+
+                              controller.ignoring = false;
+                            controller.update();
                           },
                         );
                       },
                       onScaleUpdate: (details) {
                         debugPrint("pan update $details");
-                        setState(() {
-                          if (signatureSelected) {
-                            rotation = details.rotation != 0.0 ? details.rotation : rotation;
+
+                          if (controller.signatureSelected) {
+                            controller.rotation = details.rotation != 0.0 ? details.rotation : controller.rotation;
                             if (details.scale != 1) {
-                              scale = details.scale;
+                              controller.scale = details.scale;
                             }
-                            scale = details.scale != 1 ? details.scale : scale;
+                            controller.scale = details.scale != 1 ? details.scale : controller.scale;
                             Offset imageOffset =
-                                Offset(details.focalPoint.dx - (150 * scale) / 2, details.focalPoint.dy - (150 * scale) / 2);
-                            signatureScreenPos = imageOffset;
+                                Offset(details.focalPoint.dx - (150 * controller.scale) / 2, details.focalPoint.dy - (150 * controller.scale) / 2);
+                            controller.signatureScreenPos = imageOffset;
                           }
-                        });
+                        controller.update();
                       },
-                      child: signatureImg != null
+                      child: controller.signatureImg != null
                           ? Container(
-                              width: imageWidth * scale,
-                              height: imageHeight * scale,
+                              width: controller.imageWidth * controller.scale,
+                              height: controller.imageHeight * controller.scale,
                               decoration: BoxDecoration(
                                   border: Border.all(
-                                color: signatureSelected ? primaryColor : Colors.transparent,
+                                color: controller.signatureSelected ? primaryColor : Colors.transparent,
                               )),
                               child: Image.file(
-                                signatureImg!,
+                                controller.signatureImg!,
                                 fit: BoxFit.contain,
                                 isAntiAlias: true,
                               ))
@@ -161,10 +136,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
               left: 0,
               child: InkWell(
                 onTap: () {
-                  if (pageNumber > 0) {
-                    pageNumber--;
-                    controller.jumpToPage(pageNumber);
-                  }
+                  controller.previousPage();
                 },
                 child: Container(
                   height: 40,
@@ -189,10 +161,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
               right: 0,
               child: InkWell(
                 onTap: () {
-                  if (pageNumber < controller.pageCount) {
-                    pageNumber++;
-                    controller.jumpToPage(pageNumber);
-                  }
+                  controller.nextPage();
                 },
                 child: Container(
                   height: 40,
@@ -241,20 +210,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
             padding: const EdgeInsets.only(left: 32),
             child: ElevatedButton(
                 onPressed: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DrawSignature(),
-                      )).then((image) async {
-                    if (image != null) {
-                      ui.Image byteList = await decodeImageFromList(await image.readAsBytes());
-                      imageHeight = byteList.height;
-                      imageWidth = byteList.width;
-                      signatureImg = image;
-                      debugPrint("signature img: $signatureImg");
-                      setState(() {});
-                    }
-                  });
+                  controller.drawSignature();
                 },
                 style: ElevatedButton.styleFrom(
                     foregroundColor: Colors.white,
@@ -268,7 +224,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
               onPressed: () async {
                 /// Download PDF
                 // if (!signatureSelected) {
-                  downloadPDF(download: true);
+                  controller.downloadPDF(download: true);
                 // } else {
                 //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Make changes to PDF")));
                 // }
@@ -282,59 +238,7 @@ class _ViewPDFPageState extends State<ViewPDFPage> {
     );
   }
 
-  downloadPDF({required bool download}) async {
-    Uint8List pdfList = updatedPDF != null
-        ? await updatedPDF!.readAsBytes()
-        : await widget.pdf.absolute.readAsBytes();
 
-    // Create a new PDF document
-    PdfDocument document = PdfDocument(inputBytes: pdfList);
-
-    // Only add the signature if it exists
-    if (signatureImg != null) {
-      debugPrint(
-          "pages list ${document.pages.count}, ${(rotation == 0 ? 1 : rotation) * (180 / math.pi)}, ${signatureScreenPos.dx}, ${signatureScreenPos.dy}, ${imageWidth * scale}, ${imageHeight * scale}");
-      int number = pageNumber > 0 ? pageNumber - 1 : 0;
-      document.pages[number].graphics.drawImage(
-        PdfBitmap(await signatureImg!.readAsBytes()),
-        Rect.fromLTWH(
-          (signaturePDFPos - signatureImageLocalPos).dx - 40,
-          (signaturePDFPos - signatureImageLocalPos).dy - 35,
-          imageWidth * scale * 1.5,
-          imageHeight * scale * 1.5,
-        ),
-      );
-    }
-
-    // Save to path
-    Directory saveDir = await getTemporaryDirectory();
-    if (download) {
-      saveDir = Directory('/storage/emulated/0/Download');
-    }
-
-    if (!await saveDir.exists()) {
-      await saveDir.create(recursive: true);
-    }
-
-    String path = '${saveDir.path}/${widget.pdf.path.split("/").last.split(".").first}_${DateTime.now().millisecondsSinceEpoch}.pdf';
-    await File(path).writeAsBytes(await document.save()).then((saveFile) {
-      debugPrint("fileWritten at $path");
-      updatedPDF = saveFile;
-
-      // Reset signature state if it was used
-      signatureImg = null;
-      signatureSelected = true;
-      scale = 1;
-      rotation = 0.0;
-
-      document.dispose();
-
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("PDF downloaded successfully to $path")),
-      );
-    });
-  }
 
 
 // downloadPDF({required bool download}) async {
