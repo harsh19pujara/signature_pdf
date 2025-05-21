@@ -5,28 +5,34 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:signature_pdf/models/signature_model.dart';
 import 'package:signature_pdf/screens/add_signature/draw_signature.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
-class EditPDFController extends GetxController{
+class EditPDFController extends GetxController {
   File pickedFile = Get.arguments as File;
-
   PdfViewerController pdfController = PdfViewerController();
-  Offset signatureScreenPos = const Offset(0, 0);
-  Offset signaturePDFPlacingPos = const Offset(0, 0);
-  Offset signaturePDFPos = const Offset(0, 0);
-  Offset signatureImageLocalPos = const Offset(0, 0);
-  File? signatureImg;
-  int imageHeight = 0;
-  int imageWidth = 0;
-  double oldRotation = 0.0;
-  double rotation = 0.0;
-  double scale = 1.0;
-  bool signatureSelected = true;
-  bool ignoring = false;
-  int pageNumber = 1;
   File? updatedFile;
+  List<SignatureModel> signatureList = [];
+  int? currentSelectedSign;
+  SignatureModel? selectedSign;
+  int pdfPageNumber = 0;
+
+  // Signature
+  // Offset signatureScreenPos = const Offset(0, 0);
+  // Offset signPositionOnPDF = const Offset(0, 0);
+  // Offset signatureImageLocalPos = const Offset(0, 0);
+  // File? signatureImg;
+  // int imageHeight = 0;
+  // int imageWidth = 0;
+  // double rotation = 0.0;
+  // double scale = 1.0;
+  // bool signatureSelected = true;
+  // bool ignoring = false;
+  // int pageNumber = 1;
+
+  // Advertisement
   bool interstitialAdLoaded = false;
   bool rewardedAdLoaded = false;
   String adUnitId = 'ca-app-pub-7342648461123301/4299974481';
@@ -40,19 +46,24 @@ class EditPDFController extends GetxController{
     PdfDocument document = PdfDocument(inputBytes: pdfList);
 
     // Only add the signature if it exists
-    if (signatureImg != null) {
-      debugPrint(
-          "pages list ${document.pages.count}, ${(rotation == 0 ? 1 : rotation) * (180 / math.pi)}, ${signatureScreenPos.dx}, ${signatureScreenPos.dy}, ${imageWidth * scale}, ${imageHeight * scale}");
-      int number = pageNumber > 0 ? pageNumber - 1 : 0;
-      document.pages[number].graphics.drawImage(
-        PdfBitmap(await signatureImg!.readAsBytes()),
-        Rect.fromLTWH(
-          (signaturePDFPos - signatureImageLocalPos).dx - 40,
-          (signaturePDFPos - signatureImageLocalPos).dy - 35,
-          imageWidth * scale * 1.5,
-          imageHeight * scale * 1.5,
-        ),
-      );
+    if (signatureList.isNotEmpty) {
+      for (SignatureModel sign in signatureList) {
+        debugPrint(
+            "pages list ${document.pages.count}, ${(sign.rotation == 0 ? 1 : sign.rotation) * (180 / math.pi)}, ${sign
+                .signatureScreenPos.dx}, ${sign.signatureScreenPos.dy}, ${sign.imgWidth * sign.scale}, ${sign.imgHeight *
+                sign.scale}");
+
+        int number = sign.pageNumber > 0 ? sign.pageNumber - 1 : 0;
+        document.pages[number].graphics.drawImage(
+          PdfBitmap(await sign.signatureImage.readAsBytes()),
+          Rect.fromLTWH(
+            (sign.signPositionOnPDF - sign.signatureImageLocalPos).dx - 40,
+            (sign.signPositionOnPDF - sign.signatureImageLocalPos).dy - 35,
+            sign.imgWidth * sign.scale * 1.5,
+            sign.imgHeight * sign.scale * 1.5,
+          ),
+        );
+      }
     }
 
     // Save to path
@@ -65,49 +76,58 @@ class EditPDFController extends GetxController{
       await saveDir.create(recursive: true);
     }
 
-    String path = '${saveDir.path}/${pickedFile.path.split("/").last.split(".").first}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    String path = '${saveDir.path}/${pickedFile.path
+        .split("/")
+        .last
+        .split(".")
+        .first}_${DateTime
+        .now()
+        .millisecondsSinceEpoch}.pdf';
     await File(path).writeAsBytes(await document.save()).then((saveFile) {
       debugPrint("fileWritten at $path");
       updatedFile = saveFile;
 
       // Reset signature state if it was used
-      signatureImg = null;
-      signatureSelected = true;
-      scale = 1;
-      rotation = 0.0;
+      // signatureImg = null;
+      // signatureSelected = true;
+      // scale = 1;
+      // rotation = 0.0;
+      signatureList.clear();
 
       document.dispose();
 
       Get.showSnackbar(
-        GetSnackBar(title: "PDF downloaded successfully to $path"),
+        GetSnackBar(title: "PDF downloaded successfully to $path", message: "Success",),
       );
     });
   }
 
   drawSignature() {
     Get.to(() => const DrawSignature(),
-        )?.then((image) async {
+    )?.then((image) async {
       if (image != null) {
         ui.Image byteList = await decodeImageFromList(await image.readAsBytes());
-        imageHeight = byteList.height;
-        imageWidth = byteList.width;
-        signatureImg = image;
-        debugPrint("signature img: $signatureImg");
+        signatureList.add(SignatureModel(signatureImage: image,
+            imgHeight: byteList.height,
+            imgWidth: byteList.width,
+            pageNumber: pdfPageNumber));
+        update();
+        debugPrint("signature img: $image");
       }
     });
   }
 
   previousPage() {
-    if (pageNumber > 0) {
-      pageNumber--;
-      pdfController.jumpToPage(pageNumber);
+    if (pdfPageNumber > 0) {
+      pdfPageNumber--;
+      pdfController.jumpToPage(pdfPageNumber);
     }
   }
 
   nextPage() {
-    if (pageNumber < pdfController.pageCount) {
-      pageNumber++;
-      pdfController.jumpToPage(pageNumber);
+    if (pdfPageNumber < pdfController.pageCount) {
+      pdfPageNumber++;
+      pdfController.jumpToPage(pdfPageNumber);
     }
   }
 }
