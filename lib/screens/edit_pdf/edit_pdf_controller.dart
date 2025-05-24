@@ -18,6 +18,7 @@ class EditPDFController extends GetxController {
   int? currentSelectedSign;
   SignatureModel? selectedSign;
   int pdfPageNumber = 0;
+  double zoomLevel = 1;
 
   // Signature
   // Offset signatureScreenPos = const Offset(0, 0);
@@ -63,6 +64,8 @@ class EditPDFController extends GetxController {
             sign.imgHeight * sign.scale * 1.5,
           ),
         );
+
+        // document.pages[number].graphics.
       }
     }
 

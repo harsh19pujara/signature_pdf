@@ -187,7 +187,7 @@ class _DrawSignatureState extends State<DrawSignature> {
     var pngBytes = await image.toByteData(format: ui.ImageByteFormat.png);
 
     Directory saveDir = await getApplicationDocumentsDirectory();
-    String path = '${saveDir.path}/signature_image.jpg';
+    String path = '${saveDir.path}/signature_image_${DateTime.now().millisecondsSinceEpoch}.jpg';
     File saveFile = File(path);
 
     if (!saveFile.existsSync()) {
