@@ -45,7 +45,10 @@ class _DrawSignatureState extends State<DrawSignature> {
         automaticallyImplyLeading: false,
         elevation: 0,
         backgroundColor: secondaryColor,
-        title: Text("Add Signature", style: TextStyle(color: primaryColor, fontSize: 22, fontWeight: FontWeight.bold),),
+        title: Text(
+          "Add Signature",
+          style: TextStyle(color: primaryColor, fontSize: 22, fontWeight: FontWeight.bold),
+        ),
         actions: [
           ElevatedButton(
               onPressed: () async {
@@ -79,7 +82,8 @@ class _DrawSignatureState extends State<DrawSignature> {
                 });
               },
               onPanUpdate: (details) {
-                // debugPrint('UPDATE ### Local Pos ${details.localPosition}, l $leftBound, r $rightBound, t $topBound, b $bottomBound');
+                debugPrint(
+                    'UPDATE ### Local Pos ${details.localPosition}, l $leftBound, r $rightBound, t $topBound, b $bottomBound');
                 setState(() {
                   line.add(details.localPosition);
                 });
@@ -217,20 +221,22 @@ class MyPainter extends CustomPainter {
       ..strokeWidth = strokeWidth;
 
     if ((!linesMap.keys.contains(id)) && offsetList?.length != 0) {
+      if (offsetList?.length == 1) {
+        Offset? newPoint = offsetList != null ? Offset(offsetList![0].dx + 1, offsetList![0].dy + 1) : null;
+        if (newPoint != null) offsetList?.add(newPoint);
+      }
       debugPrint("error $id $offsetList $linesMap");
       linesMap[id!] = offsetList ?? [];
     }
 
     for (var v = 0; v < linesMap.length; v++) {
-      if (linesMap[v] != []) {
-        if (linesMap[v] != []) {
-          for (int i = 0; i < linesMap[v]!.length; i++) {
-            if (i < linesMap[v]!.length - 1) {
-              start = linesMap[v]![i];
-              end = linesMap[v]![i + 1];
-              getBoundOfSketch(start);
-              canvas.drawLine(start!, end!, myPaint);
-            }
+      if (linesMap[v] != [] && linesMap[v] != null) {
+        for (int i = 0; i < linesMap[v]!.length; i++) {
+          if (i < linesMap[v]!.length - 1) {
+            start = linesMap[v]![i];
+            end = linesMap[v]![i + 1];
+            getBoundOfSketch(start);
+            canvas.drawLine(start!, end!, myPaint);
           }
         }
       }

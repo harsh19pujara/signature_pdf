@@ -13,7 +13,14 @@ class SignatureModel {
   bool isSignatureSelected;
   double rotation;
   double scale;
+
+  /// This [ignoring] is used for placing signature on PDF
+  /// It measures the tap interval on signature
+  /// if double taps the signature in 500ms then the placement position of sign will be considered that
+  /// ignoring measure the tap time, the second tap needs to be within 500ms,
+  /// else sign placement will not be considered
   bool ignoring;
+
 
   SignatureModel({
     required this.signatureImage,

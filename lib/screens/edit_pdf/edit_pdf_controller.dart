@@ -17,8 +17,9 @@ class EditPDFController extends GetxController {
   List<SignatureModel> signatureList = [];
   int? currentSelectedSign;
   SignatureModel? selectedSign;
-  int pdfPageNumber = 0;
+  RxInt pdfPageNumber = 1.obs;
   double zoomLevel = 1;
+  RxBool isDocumentedLoaded = false.obs;
 
   // Signature
   // Offset signatureScreenPos = const Offset(0, 0);
@@ -113,24 +114,24 @@ class EditPDFController extends GetxController {
         signatureList.add(SignatureModel(signatureImage: image,
             imgHeight: byteList.height,
             imgWidth: byteList.width,
-            pageNumber: pdfPageNumber));
+            pageNumber: pdfPageNumber.value));
         update();
-        debugPrint("signature img: $image");
+        debugPrint("signature img: ${pdfController.pageCount},,,$image");
       }
     });
   }
 
   previousPage() {
-    if (pdfPageNumber > 0) {
-      pdfPageNumber--;
-      pdfController.jumpToPage(pdfPageNumber);
+    if (pdfPageNumber.value > 1) {
+      pdfPageNumber.value--;
+      pdfController.jumpToPage(pdfPageNumber.value);
     }
   }
 
   nextPage() {
-    if (pdfPageNumber < pdfController.pageCount) {
-      pdfPageNumber++;
-      pdfController.jumpToPage(pdfPageNumber);
+    if (pdfPageNumber.value < pdfController.pageCount) {
+      pdfPageNumber.value++;
+      pdfController.jumpToPage(pdfPageNumber.value);
     }
   }
 }

@@ -16,6 +16,7 @@ class EditPDFPage extends StatelessWidget {
       body: SafeArea(
         child: GetBuilder<EditPDFController>(
           builder: (controller) {
+            debugPrint( "page :: ${getController.pdfController.pageCount .toString()}");
             return Stack(
               children: <Widget>[
                 GestureDetector(
@@ -31,7 +32,10 @@ class EditPDFPage extends StatelessWidget {
                 SfPdfViewer.file(
                   controller.updatedFile ?? controller.pickedFile,
                   onDocumentLoaded: (details) {
-                    controller.pdfController.jumpToPage(controller.pdfPageNumber);
+                    controller.pdfController.jumpToPage(controller.pdfPageNumber.value);
+                    debugPrint( "page :: ${getController.pdfController.pageCount .toString()}");
+                    controller.isDocumentedLoaded.value = true;
+
                   },
                   canShowPasswordDialog: true,
                   pageLayoutMode: PdfPageLayoutMode.single,
@@ -59,7 +63,8 @@ class EditPDFPage extends StatelessWidget {
                   // undoController: ,
                   onPageChanged: (details) {
                     // controller.pdfController.;
-                    controller.pdfPageNumber = details.newPageNumber;
+                    debugPrint("page :: ${details.newPageNumber}");
+                    controller.pdfPageNumber.value = details.newPageNumber;
                     getController.update();
                   },
 
@@ -70,10 +75,10 @@ class EditPDFPage extends StatelessWidget {
                 for (SignatureModel sign in controller.signatureList) renderSignatureWidget(sign),
 
                 /// Previous page
-                renderPreviousPageIcon(),
+                Obx(() => renderPreviousPageIcon()),
 
                 /// Next page
-                renderNextPageIcon(),
+                Obx(() => renderNextPageIcon()),
 
                 /// Instruction Text
                 renderInfoText()
@@ -121,7 +126,7 @@ class EditPDFPage extends StatelessWidget {
   }
 
   Widget renderSignatureWidget(SignatureModel sign) {
-    return sign.pageNumber == getController.pdfPageNumber
+    return sign.pageNumber == getController.pdfPageNumber.value
         ? Positioned(
             left: sign.signatureScreenPos.dx,
             top: sign.signatureScreenPos.dy,
@@ -186,7 +191,9 @@ class EditPDFPage extends StatelessWidget {
   }
 
   Widget renderPreviousPageIcon() {
-    return getController.pdfPageNumber == 0
+    return (!getController.isDocumentedLoaded.value)
+        ? const SizedBox.shrink()
+        : (getController.pdfPageNumber.value == 1  || getController.pdfController.pageCount == 1)
         ? const SizedBox.shrink()
         : Positioned(
             top: Get.height / 2,
@@ -212,7 +219,9 @@ class EditPDFPage extends StatelessWidget {
   }
 
   Widget renderNextPageIcon() {
-    return getController.pdfPageNumber == getController.pdfController.pageCount
+    return !getController.isDocumentedLoaded.value
+        ? const SizedBox.shrink()
+        : (getController.pdfPageNumber.value == getController.pdfController.pageCount) || getController.pdfController.pageCount <= 1
         ? const SizedBox.shrink()
         : Positioned(
             top: Get.height / 2,
