@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -10,7 +11,7 @@ import 'package:signature_pdf/screens/add_signature/draw_signature.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
-class EditPDFController extends GetxController {
+class EditPDFController extends GetxController with GetSingleTickerProviderStateMixin {
   File pickedFile = Get.arguments as File;
   PdfViewerController pdfController = PdfViewerController();
   File? updatedFile;
@@ -20,29 +21,46 @@ class EditPDFController extends GetxController {
   RxInt pdfPageNumber = 1.obs;
   double zoomLevel = 1;
   RxBool isDocumentedLoaded = false.obs;
-
-  // Signature
-  // Offset signatureScreenPos = const Offset(0, 0);
-  // Offset signPositionOnPDF = const Offset(0, 0);
-  // Offset signatureImageLocalPos = const Offset(0, 0);
-  // File? signatureImg;
-  // int imageHeight = 0;
-  // int imageWidth = 0;
-  // double rotation = 0.0;
-  // double scale = 1.0;
-  // bool signatureSelected = true;
-  // bool ignoring = false;
-  // int pageNumber = 1;
+  RxDouble pdfPageHeight = 0.0.obs;
+  RxDouble pdfPageWidth = 0.0.obs;
+  RxBool isPageLoaded = false.obs;
+  Timer timer = Timer(
+    const Duration(milliseconds: 00),
+    () {},
+  );
 
   // Advertisement
   bool interstitialAdLoaded = false;
   bool rewardedAdLoaded = false;
   String adUnitId = 'ca-app-pub-7342648461123301/4299974481';
 
+  void setPDFPageDimensions(PdfDocumentLoadedDetails details, BuildContext context) {
+    double pdfRatio = (details.document.pageSettings.height) / (details.document.pageSettings.width);
+    double availableScreenRation = (context.size?.height ?? 1) / (context.size?.width ?? 1);
+
+    debugPrint("screen height ${Get.height} ,,, ${Get.width}");
+    debugPrint("available height ${context.size?.height} ,,, ${context.size?.width}");
+    debugPrint("page height ${details.document.pageSettings.height} ,,, ${details.document.pageSettings.width}");
+
+    // [pdfRatio < availableScreenRation] :: Checking if PDF will fill vertical space or horizontal space
+    // [context.size?.width] is width of available are in screen for PDF viewer widget
+    // In below equation we are using (context.size?.width ?? Get.width),
+    // because if we receive null, consider full screen space, to avoid error
+    // Formula to get page height width
+    //         pdf page height -> pdf page width
+    //                          X
+    // available screen height -> available screen width
+    pdfPageHeight.value = pdfRatio < availableScreenRation
+            ? pdfRatio * (context.size?.width ?? Get.width)
+            : (context.size?.height ?? Get.height);
+
+    pdfPageWidth.value = pdfRatio < availableScreenRation
+            ? details.document.pageSettings.width
+            : pdfRatio * (context.size?.height ?? Get.height);
+  }
+
   downloadPDF({required bool download}) async {
-    Uint8List pdfList = updatedFile != null
-        ? await updatedFile!.readAsBytes()
-        : await pickedFile.absolute.readAsBytes();
+    Uint8List pdfList = updatedFile != null ? await updatedFile!.readAsBytes() : await pickedFile.absolute.readAsBytes();
 
     // Create a new PDF document
     PdfDocument document = PdfDocument(inputBytes: pdfList);
@@ -51,16 +69,14 @@ class EditPDFController extends GetxController {
     if (signatureList.isNotEmpty) {
       for (SignatureModel sign in signatureList) {
         debugPrint(
-            "pages list ${document.pages.count}, ${(sign.rotation == 0 ? 1 : sign.rotation) * (180 / math.pi)}, ${sign
-                .signatureScreenPos.dx}, ${sign.signatureScreenPos.dy}, ${sign.imgWidth * sign.scale}, ${sign.imgHeight *
-                sign.scale}");
+            "pages list ${document.pages.count}, ${(sign.rotation == 0 ? 1 : sign.rotation) * (180 / math.pi)}, ${sign.signatureScreenPos.value.dx}, ${sign.signatureScreenPos.value.dy}, ${sign.imgWidth * sign.scale}, ${sign.imgHeight * sign.scale}");
 
         int number = sign.pageNumber > 0 ? sign.pageNumber - 1 : 0;
         document.pages[number].graphics.drawImage(
           PdfBitmap(await sign.signatureImage.readAsBytes()),
           Rect.fromLTWH(
-            (sign.signPositionOnPDF - sign.signatureImageLocalPos).dx - 40,
-            (sign.signPositionOnPDF - sign.signatureImageLocalPos).dy - 35,
+            (sign.signPositionOnPDF.value - sign.signatureImageLocalPos.value).dx - 40,
+            (sign.signPositionOnPDF.value - sign.signatureImageLocalPos.value).dy - 35,
             sign.imgWidth * sign.scale * 1.5,
             sign.imgHeight * sign.scale * 1.5,
           ),
@@ -80,13 +96,8 @@ class EditPDFController extends GetxController {
       await saveDir.create(recursive: true);
     }
 
-    String path = '${saveDir.path}/${pickedFile.path
-        .split("/")
-        .last
-        .split(".")
-        .first}_${DateTime
-        .now()
-        .millisecondsSinceEpoch}.pdf';
+    String path =
+        '${saveDir.path}/${pickedFile.path.split("/").last.split(".").first}_${DateTime.now().millisecondsSinceEpoch}.pdf';
     await File(path).writeAsBytes(await document.save()).then((saveFile) {
       debugPrint("fileWritten at $path");
       updatedFile = saveFile;
@@ -101,20 +112,22 @@ class EditPDFController extends GetxController {
       document.dispose();
 
       Get.showSnackbar(
-        GetSnackBar(title: "PDF downloaded successfully to $path", message: "Success",),
+        GetSnackBar(
+          title: "PDF downloaded successfully to $path",
+          message: "Success",
+        ),
       );
     });
   }
 
   drawSignature() {
-    Get.to(() => const DrawSignature(),
+    Get.to(
+      () => const DrawSignature(),
     )?.then((image) async {
       if (image != null) {
         ui.Image byteList = await decodeImageFromList(await image.readAsBytes());
-        signatureList.add(SignatureModel(signatureImage: image,
-            imgHeight: byteList.height,
-            imgWidth: byteList.width,
-            pageNumber: pdfPageNumber.value));
+        signatureList.add(SignatureModel(
+            signatureImage: image, imgHeight: byteList.height, imgWidth: byteList.width, pageNumber: pdfPageNumber.value));
         update();
         debugPrint("signature img: ${pdfController.pageCount},,,$image");
       }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:signature_pdf/models/signature_model.dart';
@@ -12,124 +14,142 @@ class EditPDFPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: GetBuilder<EditPDFController>(
-          builder: (controller) {
-            debugPrint( "page :: ${getController.pdfController.pageCount .toString()}");
-            return Stack(
-              children: <Widget>[
-                GestureDetector(
-                    onTap: () {
-                      debugPrint("yoo");
-                    },
-                    child: Container(
-                        height: MediaQuery.of(context).size.height,
-                        width: MediaQuery.of(context).size.width,
-                        color: Colors.blue[200]!)),
+    return SafeArea(
+      child: Scaffold(
+        body: Builder(
+          // [Used builder widget to get height of screen left after using safe area]
+          builder: (context) {
+            return GetBuilder<EditPDFController>(
+              builder: (controller) {
+                debugPrint("page :: ${getController.pdfController.pageCount.toString()}");
+                return Stack(
+                  children: <Widget>[
+                    GestureDetector(
+                        onTap: () {
+                          debugPrint("yoo");
+                        },
+                        child: Container(height: Get.height, width: Get.width, color: Colors.blue[200]!)),
 
-                ///PDF
-                SfPdfViewer.file(
-                  controller.updatedFile ?? controller.pickedFile,
-                  onDocumentLoaded: (details) {
-                    controller.pdfController.jumpToPage(controller.pdfPageNumber.value);
-                    debugPrint( "page :: ${getController.pdfController.pageCount .toString()}");
-                    controller.isDocumentedLoaded.value = true;
+                    ///PDF
+                    IgnorePointer(
+                      ignoring: false,
+                      child: SfPdfViewer.file(
+                        controller.updatedFile ?? controller.pickedFile,
+                        onDocumentLoadFailed: (details) {
+                          // show doc fail
+                        },
+                        onDocumentLoaded: (details) {
+                          controller.pdfController.jumpToPage(controller.pdfPageNumber.value);
+                          debugPrint("page :: ${getController.pdfController.pageCount.toString()}");
+                          controller.isDocumentedLoaded.value = true;
+                          controller.isPageLoaded.value = true;
 
-                  },
-                  canShowPasswordDialog: true,
-                  pageLayoutMode: PdfPageLayoutMode.single,
-                  controller: controller.pdfController,
-                  canShowScrollHead: false,
-                  enableDoubleTapZooming: false,
-                  // onZoomLevelChanged: (details) {
-                  //   details.
-                  // },
-                  onTap: (details) {
-                    if (controller.selectedSign?.ignoring == true) {
-                      debugPrint(
-                          "pdf position: ${details.position}, pageNo: ${details.pageNumber}, pagePos : ${details.pagePosition},  sign ${controller.selectedSign?.signatureScreenPos}");
+                          getController.setPDFPageDimensions(details, context);
+                        },
+                        canShowPasswordDialog: true,
+                        pageLayoutMode: PdfPageLayoutMode.single,
+                        controller: controller.pdfController,
+                        canShowScrollHead: false,
+                        enableDoubleTapZooming: false,
+                        onTap: (details) {
+                          if (controller.selectedSign?.ignoring == true) {
+                            debugPrint(
+                                "pdf position: ${details.position}, pageNo: ${details.pageNumber}, pagePos : ${details.pagePosition},  sign ${controller.selectedSign?.signatureScreenPos}");
+                            controller.selectedSign?.isSignatureSelected =
+                                !(controller.selectedSign?.isSignatureSelected ?? true);
+                            controller.selectedSign?.signPositionOnPDF.value = details.pagePosition;
+                            controller.selectedSign?.ignoring = false;
 
-                      controller.selectedSign?.isSignatureSelected = !(controller.selectedSign?.isSignatureSelected ?? true);
-                      controller.selectedSign?.signPositionOnPDF = details.pagePosition;
-                      controller.selectedSign?.ignoring = false;
+                            controller.update();
+                            // if (!signatureSelected) {
+                            //   downloadPDF(download: false);
+                            // }
+                          }
+                        },
+                        onPageChanged: (details) {
+                          debugPrint("page :: ${details.newPageNumber}");
+                          controller.pdfPageNumber.value = details.newPageNumber;
+                          getController.isPageLoaded.value = false;
 
-                      controller.update();
-                      // if (!signatureSelected) {
-                      //   downloadPDF(download: false);
-                      // }
-                    }
-                  },
-                  // undoController: ,
-                  onPageChanged: (details) {
-                    // controller.pdfController.;
-                    debugPrint("page :: ${details.newPageNumber}");
-                    controller.pdfPageNumber.value = details.newPageNumber;
-                    getController.update();
-                  },
+                          // Waiting till the page is loading, so that sign does not appear before page is loaded
+                          getController.timer = Timer(const Duration(milliseconds: 300), () {
+                            getController.isPageLoaded.value = true;
+                          });
+                          getController.update();
+                        },
+                        maxZoomLevel: 1,
+                      ),
+                    ),
 
-                  maxZoomLevel: 1,
-                ),
+                    ///Signature Image
+                //     Obx(
+                // () => Container(
+                //         height: getController.pdfPageHeight.value,
+                //   width: getController.pdfPageWidth.value,
+                //   child: ,
+                //       ),
+                //     )
+                    for (SignatureModel sign in controller.signatureList) renderSignatureWidget(sign),
 
-                ///Signature Image
-                for (SignatureModel sign in controller.signatureList) renderSignatureWidget(sign),
+                    /// Previous page
+                    Obx(() => renderPreviousPageIcon()),
 
-                /// Previous page
-                Obx(() => renderPreviousPageIcon()),
+                    /// Next page
+                    Obx(() => renderNextPageIcon()),
 
-                /// Next page
-                Obx(() => renderNextPageIcon()),
-
-                /// Instruction Text
-                renderInfoText()
-              ],
+                    /// Instruction Text
+                    renderInfoText()
+                  ],
+                );
+              },
             );
           },
         ),
-      ),
 
-      /// Download and Draw Signature Button
-      floatingActionButton: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 32),
-            child: ElevatedButton(
-                onPressed: () {
-                  getController.drawSignature();
+        /// Download and Draw Signature Button
+        floatingActionButton: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 32),
+              child: ElevatedButton(
+                  onPressed: () {
+                    getController.drawSignature();
+                  },
+                  style: ElevatedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: primaryColor,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                  child: const Text("Add Signature")),
+            ),
+            FloatingActionButton.small(
+                heroTag: 'Download',
+                backgroundColor: primaryColor,
+                onPressed: () async {
+                  /// Download PDF
+                  // if (!signatureSelected) {
+                  getController.downloadPDF(download: true);
+                  // } else {
+
+                  //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Make changes to PDF")));
+                  // }
                 },
-                style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: primaryColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                child: const Text("Add Signature")),
-          ),
-          FloatingActionButton.small(
-              heroTag: 'Download',
-              backgroundColor: primaryColor,
-              onPressed: () async {
-                /// Download PDF
-                // if (!signatureSelected) {
-                getController.downloadPDF(download: true);
-                // } else {
-
-                //   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Make changes to PDF")));
-                // }
-              },
-              child: Icon(
-                Icons.download_sharp,
-                color: secondaryColor,
-              )),
-        ],
+                child: Icon(
+                  Icons.download_sharp,
+                  color: secondaryColor,
+                )),
+          ],
+        ),
       ),
     );
   }
 
   Widget renderSignatureWidget(SignatureModel sign) {
-    return sign.pageNumber == getController.pdfPageNumber.value
+    return Obx(() => sign.pageNumber == getController.pdfPageNumber.value && getController.isPageLoaded.value
         ? Positioned(
-            left: sign.signatureScreenPos.dx,
-            top: sign.signatureScreenPos.dy,
+            left: sign.signatureScreenPos.value.dx,
+            top: sign.signatureScreenPos.value.dy,
+            // alignment: Alignment(sign.signatureScreenPos.value.dx, sign.signatureScreenPos.value.dy),
             child: IgnorePointer(
               ignoring: sign.ignoring,
               child: Transform.rotate(
@@ -139,7 +159,7 @@ class EditPDFPage extends StatelessWidget {
                     onTapUp: (tapDetails) {
                       if (sign.isSignatureSelected == true) {
                         debugPrint("tapped00 ${tapDetails.localPosition}");
-                        sign.signatureImageLocalPos = tapDetails.localPosition;
+                        sign.signatureImageLocalPos.value = tapDetails.localPosition;
                         sign.ignoring = true;
                         // sign.isSignatureSelected = !sign.isSignatureSelected;
                       } else {
@@ -147,15 +167,11 @@ class EditPDFPage extends StatelessWidget {
                       }
                       getController.selectedSign = sign;
                       getController.update();
-                      Future.delayed(
-                        const Duration(
-                          milliseconds: 500,
-                        ),
-                        () {
-                          sign.ignoring = false;
-                          getController.update();
-                        },
-                      );
+
+                      Future.delayed(const Duration(milliseconds: 500), () {
+                        sign.ignoring = false;
+                        getController.update();
+                      });
                     },
                     onScaleUpdate: (details) {
                       debugPrint("pan update $details");
@@ -168,7 +184,7 @@ class EditPDFPage extends StatelessWidget {
                         sign.scale = details.scale != 1 ? details.scale : sign.scale;
                         Offset imageOffset = Offset(
                             details.focalPoint.dx - (150 * sign.scale) / 2, details.focalPoint.dy - (150 * sign.scale) / 2);
-                        sign.signatureScreenPos = imageOffset;
+                        sign.signatureScreenPos.value = imageOffset;
                       }
                       getController.update();
                     },
@@ -187,63 +203,64 @@ class EditPDFPage extends StatelessWidget {
               ),
             ),
           )
-        : const SizedBox.shrink();
+        : const SizedBox.shrink());
   }
 
   Widget renderPreviousPageIcon() {
     return (!getController.isDocumentedLoaded.value)
         ? const SizedBox.shrink()
-        : (getController.pdfPageNumber.value == 1  || getController.pdfController.pageCount == 1)
-        ? const SizedBox.shrink()
-        : Positioned(
-            top: Get.height / 2,
-            left: 0,
-            child: InkWell(
-              onTap: () => getController.previousPage(),
-              child: Container(
-                height: 80,
-                width: 50,
-                decoration: BoxDecoration(
-                    color: secondaryColor.withValues(alpha: 0.9),
-                    borderRadius: const BorderRadius.only(bottomRight: Radius.circular(10), topRight: Radius.circular(10))),
-                child: Center(
-                  child: Icon(
-                    Icons.arrow_back_ios_new_sharp,
-                    color: primaryColor,
-                    size: 40,
+        : (getController.pdfPageNumber.value == 1 || getController.pdfController.pageCount == 1)
+            ? const SizedBox.shrink()
+            : Positioned(
+                top: Get.height / 2,
+                left: 0,
+                child: InkWell(
+                  onTap: () => getController.previousPage(),
+                  child: Container(
+                    height: 80,
+                    width: 50,
+                    decoration: BoxDecoration(
+                        color: secondaryColor.withValues(alpha: 0.9),
+                        borderRadius: const BorderRadius.only(bottomRight: Radius.circular(10), topRight: Radius.circular(10))),
+                    child: Center(
+                      child: Icon(
+                        Icons.arrow_back_ios_new_sharp,
+                        color: primaryColor,
+                        size: 40,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          );
+              );
   }
 
   Widget renderNextPageIcon() {
     return !getController.isDocumentedLoaded.value
         ? const SizedBox.shrink()
-        : (getController.pdfPageNumber.value == getController.pdfController.pageCount) || getController.pdfController.pageCount <= 1
-        ? const SizedBox.shrink()
-        : Positioned(
-            top: Get.height / 2,
-            right: 0,
-            child: InkWell(
-              onTap: () => getController.nextPage(),
-              child: Container(
-                height: 80,
-                width: 50,
-                decoration: BoxDecoration(
-                    color: secondaryColor.withValues(alpha: 0.8),
-                    borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(10), topLeft: Radius.circular(10))),
-                child: Center(
-                  child: Icon(
-                    Icons.arrow_forward_ios_sharp,
-                    color: primaryColor,
-                    size: 40,
+        : (getController.pdfPageNumber.value == getController.pdfController.pageCount) ||
+                getController.pdfController.pageCount <= 1
+            ? const SizedBox.shrink()
+            : Positioned(
+                top: Get.height / 2,
+                right: 0,
+                child: InkWell(
+                  onTap: () => getController.nextPage(),
+                  child: Container(
+                    height: 80,
+                    width: 50,
+                    decoration: BoxDecoration(
+                        color: secondaryColor.withValues(alpha: 0.8),
+                        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(10), topLeft: Radius.circular(10))),
+                    child: Center(
+                      child: Icon(
+                        Icons.arrow_forward_ios_sharp,
+                        color: primaryColor,
+                        size: 40,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          );
+              );
   }
 
   Widget renderInfoText() {

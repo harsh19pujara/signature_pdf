@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:get/get.dart';
+
 class SignatureModel {
   final File signatureImage;
-  Offset signatureScreenPos;
-  Offset signPositionOnPDF;
-  Offset signatureImageLocalPos;
+  Rx<Offset> signatureScreenPos = const Offset(0, 0).obs;
+  Rx<Offset> signPositionOnPDF = const Offset(0, 0).obs;
+  Rx<Offset> signatureImageLocalPos = const Offset(0, 0).obs;
   int imgHeight;
   int imgWidth;
   bool isPlaced;
@@ -24,9 +26,9 @@ class SignatureModel {
 
   SignatureModel({
     required this.signatureImage,
-    this.signatureScreenPos = const Offset(0, 0),
-    this.signPositionOnPDF = const Offset(0, 0),
-    this.signatureImageLocalPos = const Offset(0, 0),
+    // this.signatureScreenPos = const Offset(dx, dy).obs,
+    // this.signPositionOnPDF.value = Offset(0, 0).,
+    // this.signatureImageLocalPos.value = Offset(0, 0),
     required this.imgHeight,
     required this.imgWidth,
     this.isPlaced = false,
